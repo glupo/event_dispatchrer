@@ -1,0 +1,38 @@
+version: '3'
+services:
+  db:
+    image: postgres
+    volumes:
+      - pgdata
+  redis:
+    image: redis:3.2-alpine
+    ports:
+      - 6379:6379
+    volumes:
+      - ed_redis:/data
+  sidekiq:
+    depends_on:
+      - db
+      - redis
+    build: .
+    command: sidekiq start
+    volumes:
+      - .:/event_dispatcher
+  web:
+    build: .
+    command: bundle exec rails s -p 3000 -b '0.0.0.0'
+    volumes:
+      - .:/event_dispatcher
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+      - redis
+      - sidekiq
+  receiver:
+    build: .
+    command: rackup -p 8080 lib/receiver.rb --host 0.0.0.0
+    ports:
+      - "8080:8080"
+volumes:
+  ed_redis:
